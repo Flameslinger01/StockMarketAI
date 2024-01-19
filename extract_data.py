@@ -9,7 +9,7 @@ class stock:
         self.volume = volume
         self.ticker = ticker
 
-data = np.genfromtxt('/workspaces/StockMarketAI/testticker2.csv', delimiter=',', dtype=None, encoding=None)
+data = np.genfromtxt('/workspaces/StockMarketAI/data/testticker2.csv', delimiter=',', dtype=None, encoding=None)
 stockList = []
 open = []
 high = []
