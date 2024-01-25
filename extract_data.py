@@ -18,6 +18,7 @@ def generateStockList(data, day, startingDay): # returns a list of a list contai
     close = []
     volume = []
     ticker = data[1,7]
+    tickerList = []
     temp = stock(open,high,low,close,volume,ticker)
 
     for i in range(1, len(data)):
@@ -29,6 +30,7 @@ def generateStockList(data, day, startingDay): # returns a list of a list contai
             if(currentTicker != ticker):
                 temp = stock(open,high,low,close,volume,ticker)
                 stockList.append(temp)
+                tickerList.append(ticker)
                 open = [data[i,1]]
                 high = [data[i,2]]
                 low = [data[i,3]]
@@ -44,7 +46,7 @@ def generateStockList(data, day, startingDay): # returns a list of a list contai
         
     temp = stock(open,high,low,close,volume,ticker)
     stockList.append(temp)
-    return stockList
+    return stockList, tickerList
 """
 test = generateStockList('data/minute.csv',0,17)
 print(test[0].open[0]) # first company, first minute
