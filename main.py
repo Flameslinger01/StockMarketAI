@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import torch
+import gym
 from torch import nn
 from torch import optim
 from torch.distributions.categorical import Categorical
@@ -165,8 +166,14 @@ def rollout(model, env, max_steps=1000):
 
     return train_data, ep_reward
 
+
+env = gym.make('stockmarketAI')
+model = ActorCriticNetwork(env.observation_space.shape[0], env.action_space.n)
+model = model.to(DEVICE)
+train_data, reward = rollout(model, env)
+
 # Define training params
-n_episodes = 1000
+n_episodes = 500
 print_freq = 20
 stockList = ed.generateStockList('/workspaces/StockMarketAI/data/testticker2.csv')
 
