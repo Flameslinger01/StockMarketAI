@@ -4,6 +4,7 @@ import gymnasium as gym
 from gymnasium import spaces
 from gymnasium import utils
 import numpy as np
+from numpy.random import default_rng
 from gymnasium.envs.registration import register
 
 register(
@@ -14,13 +15,17 @@ register(
 
 fullMarket = ed.generateStockList('data/minute.csv', 0, 17)
 numberOfDays = 2
-numberOfStocks = 4
+numberOfStocks = 3
 startingMoney = np.random.randint(30000, 40000)
 currentMoney = startingMoney
 currentTime = 4
 numShares = np.zeros([numberOfStocks,1], np.float32)
 numShares[1] = 100
 buyPrice = np.zeros([numberOfStocks,1], np.float32)
+rng = default_rng()
+stockIndexes = rng.choice(len(fullMarket), size=numberOfStocks, replace=False)
+for stock in fullMarket:
+    print(fullMarket.index(stock))
 
 open = [[stock.open[i] for i in range(currentTime+1)] for stock in fullMarket]
 close = [[stock.close[i] for i in range(currentTime+1)] for stock in fullMarket]
@@ -28,13 +33,14 @@ low = [[stock.low[i] for i in range(currentTime+1)] for stock in fullMarket]
 high = [[stock.high[i] for i in range(currentTime+1)] for stock in fullMarket]
 volume = [[stock.volume[i] for i in range(currentTime+1)] for stock in fullMarket]
 test = np.array([open, close, low, high, volume])
-print(test)
+
+#print(test)
 #print(test[fullMarket.index('AAPL')][0][0]) # Apple, Open, Minute 0
 
 action_space = spaces.Dict(
             {
-                stock.ticker: spaces.Box(-numShares[fullMarket.index(stock)],(currentMoney-25000)/np.float32(stock.open[currentTime]),dtype=np.float32)
-                for stock in fullMarket
+                stock.ticker: spaces.Box(-numShares[fullMarket.index(stock)],(currentMoney-25000)/(np.float32(stock.open[currentTime])*np.float32(numberOfStocks)),dtype=np.float32)
+                for stock in fullMarket if fullMarket.index(stock) in stockIndexes
             }
         )
 for stock, action in action_space.sample().items():
@@ -73,8 +79,8 @@ class marketEnv(gym.Env):
         """
         self.action_space = spaces.Dict(
             {
-                # Stock Name is key, action is box with how many shares to do something with
-                stock.ticker: spaces.Box(-self.numShares[self.fullMarket.index(stock)],(self.currentMoney-25000)/np.float32(stock.open[self.currentTime]),dtype=np.float32) # minimum of how many shares had, max of 
+                # Stock Name is key, action is box with how many shares to do something with (negative is sell, 0 is hold, positive is buy)
+                stock.ticker: spaces.Box(-self.numShares[self.fullMarket.index(stock)],(self.currentMoney-25000)/np.float32(stock.open[self.currentTime])*np.float32(numberOfStocks),dtype=np.float32) # minimum of how many shares had, max of above minimum divided by stock price further divided by number of stocks 
                 for stock in self.fullMarket
             }
         )
