@@ -138,7 +138,8 @@ def rollout(model, env, max_steps=1000):
     """
     ### Create data storage
     train_data = [[], [], [], [], []] # obs, act, reward, values, act_log_probs
-
+    obs = env.reset()[0]
+    print([obs])
     ep_reward = 0
     for _ in range(max_steps):
         logits, val = model(torch.tensor([obs], dtype=torch.float32,
@@ -168,14 +169,14 @@ def rollout(model, env, max_steps=1000):
 
 
 env = gym.make('stockmarketAI-v0',2,3, 'data/minute.csv')
-model = ActorCriticNetwork(env.observation_space.shape[0], env.action_space.n)
+env = gym.wrappers.FlattenObservation(env)
+model = ActorCriticNetwork(env.observation_space.shape[0], env.action_space.shape[0])
+print(env.action_space.shape[0])
 model = model.to(DEVICE)
-train_data, reward = rollout(model, env)
 
 # Define training params
 n_episodes = 500
 print_freq = 20
-stockList = ed.generateStockList('/workspaces/StockMarketAI/data/testticker2.csv')
 
 ppo = PPOTrainer(
     model,
@@ -184,6 +185,7 @@ ppo = PPOTrainer(
     target_kl_div = 0.02,
     max_policy_train_iters = 40,
     value_train_iters = 40)
+
 
 # Training loop
 ep_rewards = []
