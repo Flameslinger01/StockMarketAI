@@ -5,7 +5,7 @@ import yfinance as yf
 # main loop
 tickerStrings = ['TXG', 'MMM', 'ABT', 'ABBV', 'ACHC', 'ACN', 'AYI', 'ADM', 'ADBE', 'ADP', 'ADT', 'AAP', 'WMS', 'ACM', 'AES', 'AFRM',
    'AFL', 'AGCO', 'A', 'AGL', 'ADC', 'AGNC', 'AIG', 'AL', 'APD', 'ABNB', 'AKAM', 'ALK', 'ALB', 'ACI', 'AA', 'ARE',
-   'ALGN', 'ALLE', 'ALGM', 'LNT', 'ALSN', 'ALL', 'ALLY', 'ALNY', 'GOOGL', 'GOOG', 'AYX', 'MO', 'AMZN', 'AMC', 'AMCR',
+   'ALGN', 'ALLE', 'ALGM', 'LNT', 'ALSN', 'ALL', 'ALLY', 'ALNY', 'GOOGL',  'AYX', 'MO', 'AMZN', 'AMC', 'AMCR',
    'AMD', 'DOX', 'AMED', 'AEE', 'AAL', 'AEP', 'AXP', 'AFG', 'AMH', 'AMT', 'AWK', 'COLD', 'AMP', 'AME', 'AMG', 'AMGN',
    'APH', 'ADI', 'NLY', 'ANSS', 'AM', 'AR', 'AON', 'APA', 'AIRC', 'APLS', 'APO', 'AAPL', 'AMAT', 'APP', 'ATR', 'APTV',
    'ARMK', 'ACGL', 'AMBP', 'ARES', 'ANET', 'AWI', 'ARW', 'AJG', 'ASH', 'AZPN', 'AIZ', 'AGO', 'T', 'TEAM', 'ATO', 'ADSK',

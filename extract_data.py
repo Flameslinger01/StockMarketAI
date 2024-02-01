@@ -46,6 +46,7 @@ def generateStockList(data, day, startingDay): # returns a list of a list contai
         
     temp = stock(open,high,low,close,volume,ticker)
     stockList.append(temp)
+    tickerList.append(ticker)
     return stockList, tickerList
 """
 test = generateStockList('data/minute.csv',0,17)
