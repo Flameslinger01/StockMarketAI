@@ -1,5 +1,6 @@
 # import
 import extract_data as ed
+import csv
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium import utils
@@ -21,7 +22,7 @@ class marketEnv(gym.Env):
         self.fullMarket, self.tickerList = ed.generateStockList(data, self.np_random.integers(0,numberOfDays-1), 17)
         self.startingMoney = np.random.randint(30000, 40000)
         self.currentMoney = self.startingMoney
-        self.currentTime, self.stockWorth = 0, 0
+        self.currentTime, self.stockWorth, self.reward = 0, 0, 0
         self.numShares = np.zeros([len(self.fullMarket),1], np.float32)
         self.buyPrice = np.zeros([len(self.fullMarket),1], np.float32)
         rng = default_rng()
@@ -36,15 +37,38 @@ class marketEnv(gym.Env):
         ))
 
         # Action Space
+        self.low, self.high = [],[]
+        for stock in self.fullMarket:
+            if self.fullMarket.index(stock) in self.stockIndexes:
+                self.low.append(-self.numShares[self.fullMarket.index(stock)].item())
+                self.high.append(max(0,self.currentMoney-25000)/(np.float32(stock.open[self.currentTime])*np.float32(self.numberOfStocks)))
+        self.action_space = spaces.Box(-25, 25,(self.numberOfStocks,),np.float32)
 
-        self.action_space = gym.spaces.flatten_space(spaces.Dict(
-            {
-                # Stock Name is key, action is box with how many shares to do something with (negative is sell, 0 is hold, positive is buy)
-                stock.ticker: spaces.Box(-self.numShares[self.fullMarket.index(stock)],(max(0,self.currentMoney-25000))/(np.float32(stock.open[self.currentTime])*np.float32(numberOfStocks)),dtype=np.float32) # minimum of how many shares had, max of above minimum divided by stock price further divided by number of stocks 
-                for stock in self.fullMarket if self.fullMarket.index(stock) in self.stockIndexes
-            }
-        ))
+    def action(self, action: np.ndarray) -> np.ndarray:
+        """Change the range (-1, 1) to (low, high)."""
+        low = self.action_space.low
+        high = self.action_space.high
 
+        scale_factor = (high - low) / 2
+        reloc_factor = high - scale_factor
+
+        action = action * scale_factor + reloc_factor
+        action = np.clip(action, low, high)
+
+        return action
+
+    def reverse_action(self, action: np.ndarray) -> np.ndarray:
+        """Change the range (low, high) to (-1, 1)."""
+        low = self.action_space.low
+        high = self.action_space.high
+
+        scale_factor = (high - low) / 2
+        reloc_factor = high - scale_factor
+
+        action = (action - reloc_factor) / scale_factor
+        action = np.clip(action, -1.0, 1.0)
+
+        return action
     def _get_obs(self):
         # set up stock history
         open = [[np.float32(stock.open[self.currentTime])] for stock in self.fullMarket]
@@ -52,7 +76,7 @@ class marketEnv(gym.Env):
         low = [[np.float32(stock.low[self.currentTime])] for stock in self.fullMarket]
         high = [[np.float32(stock.high[self.currentTime])] for stock in self.fullMarket]
         volume = [[np.float32(stock.volume[self.currentTime])] for stock in self.fullMarket]
-        test2 = [[[self.currentMoney]], [[self.currentTime]], self.numShares.tolist(), open, close, low, high, volume]
+        test2 = [[[self.currentMoney]], [[self.currentTime]], self.numShares.tolist(), self.buyPrice.tolist(),open, close, low, high, volume]
         test2 = [val for sublist in test2 for val in sublist]
         test2 = [val for sublist in test2 for val in sublist]
         return np.array(test2, dtype= np.float32)
@@ -79,70 +103,87 @@ class marketEnv(gym.Env):
         self.buyPrice = np.zeros([len(self.fullMarket),1], np.float32)
         rng = default_rng()
         self.stockIndexes = rng.choice(len(self.fullMarket), size=self.numberOfStocks, replace=False)
+        self.stockIndexes.sort()
 
         # Action Space
-        self.action_space = gym.spaces.flatten_space(spaces.Dict(
-            {
-                # Stock Name is key, action is box with how many shares to do something with (negative is sell, 0 is hold, positive is buy)
-                stock.ticker: spaces.Box(-self.numShares[self.fullMarket.index(stock)],(max(0,self.currentMoney-25000))/(np.float32(stock.open[self.currentTime])*np.float32(self.numberOfStocks)),dtype=np.float32) # minimum of how many shares had, max of above minimum divided by stock price further divided by number of stocks 
-                for stock in self.fullMarket if self.fullMarket.index(stock) in self.stockIndexes
-            }
-        ))
+        self.low, self.high = [],[]
+        for stock in self.fullMarket:
+            if self.fullMarket.index(stock) in self.stockIndexes:
+                self.low.append(-self.numShares[self.fullMarket.index(stock)].item())
+                self.high.append(max(0,self.currentMoney-25000)/(np.float32(stock.open[self.currentTime])*np.float32(self.numberOfStocks)))
 
         # Gather observations
         observation = self._get_obs()
         info = self._get_info()
 
-        return observation, {}
+        return np.array(observation, dtype=np.float32)
         
     # Step 
     def step(self, action_dict):
         # Actions
-        for stock, action in action_dict.items():
-            self.numShares[self.tickerList.index(stock)] += np.float32(action)
-            self.currentMoney -= np.float32(self.fullMarket[self.tickerList.index(stock)].close[int(self.currentTime)].item()) * np.float32(action.item())
-        reward = 0 
-
-        self.action_space = gym.spaces.flatten_space(spaces.Dict(
-            {
-                # Stock Name is key, action is box with how many shares to do something with (negative is sell, 0 is hold, positive is buy)
-                stock.ticker: spaces.Box(-self.numShares[self.fullMarket.index(stock)],(max(0,self.currentMoney-25000))/(np.float32(stock.open[self.currentTime])*np.float32(self.numberOfStocks)),dtype=np.float32) # minimum of how many shares had, max of above minimum divided by stock price further divided by number of stocks 
-                for stock in self.fullMarket if self.fullMarket.index(stock) in self.stockIndexes
-            }
-        ))
+        action_dict = self.action(action_dict)
+        #print(self.numShares)
+        j = 0
+        for i in range(len(self.fullMarket)):
+            if i in self.stockIndexes:
+                old = self.buyPrice[i] * self.numShares[i]
+                self.numShares[i] += np.clip(np.float32(action_dict[j]),self.low[j],self.high[j])
+                self.currentMoney -= np.float32(self.fullMarket[i].close[int(self.currentTime)].item()) * np.clip(np.float32(action_dict[j]),self.low[j],self.high[j])
+                if self.numShares[i] > 0: self.buyPrice[i] = np.float32((old + np.float32(self.fullMarket[i].close[int(self.currentTime)].item()) * np.clip(np.float32(action_dict[j]),self.low[j],self.high[j]))/self.numShares[i])
+                #print(self.buyPrice[i])
+                j += 1
+        #print()
+    
+        # Action Space
+        self.low, self.high = [],[]
+        for stock in self.fullMarket:
+            if self.fullMarket.index(stock) in self.stockIndexes:
+                self.low.append(-self.numShares[self.fullMarket.index(stock)].item())
+                self.high.append(max(0,self.currentMoney-25000)/(np.float32(stock.open[self.currentTime])*np.float32(self.numberOfStocks)))
+        #self.reward = 0
         terminated = False
         truncated = False
-        reward += 1 if self.stockWorth + self.currentMoney - self.startingMoney > 0 else -1
-        if self.currentTime == 390:
+    
+        if(sum(self.numShares) == 0):
+            self.reward += 1
+        else:
+            self.reward -= 1
+        if self.currentTime == 360:
+            #print(self.currentMoney)
             terminated = True
-        if self.currentMoney < 25000:
-            truncated = True
         
         self.currentTime += 1
         observation = self._get_obs()
         info = self._get_info()
+        return observation, self.reward, terminated, truncated, {}
 
-        return observation, reward, terminated, truncated, {}
-
-
-market = marketEnv(2,3, 'data/minute.csv')
-#temp = 0
-#market._get_obs()
 """
+market = marketEnv()
+#print(market._get_obs().shape)
+temp = 0
+growth = 1
+k = 0
+file1 = open("MyFile.csv", "w") 
 while(True):
+    k += 1
+    growth += 0.05
     for i in range(100):
         test = market.action_space.sample()
-        # print(market.numShares)
-        # print(market.action_space)
+        #print(market.currentMoney)
+        #print(market.numShares)
+        #print(market.action_space)
+        #print(test)
         market.step(test)
-    if((market.currentMoney+market.stockWorth - market.startingMoney) > temp):
-        print(str(market.currentMoney+market.stockWorth - market.startingMoney))
-        temp = market.currentMoney+market.stockWorth - market.startingMoney
-    market.reset()
-    if(temp > 100):
+    if((market.currentMoney+market.stockWorth - market.startingMoney)*growth > temp):
+        file1.write(str((market.currentMoney+market.stockWorth - market.startingMoney).item() * growth) + ", " + str(k) + "\n")
+        print(str((market.currentMoney+market.stockWorth - market.startingMoney).item() * growth) + ", " + str(k))
+        temp = (market.currentMoney+market.stockWorth - market.startingMoney) * growth/2
+        real = temp*2
+    if(real > 17000):
         break
-
+    market.reset()
 
 print("Starting Money: " + str(market.startingMoney) + ", Current Money: " + str(market.currentMoney+market.stockWorth))
 print("Profit: " + str(market.currentMoney+market.stockWorth - market.startingMoney))
+file1.close()
 """
